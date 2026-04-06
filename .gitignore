@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+.env
+build/cert.pfx
+*.log
+.DS_Store
+*.ico
+*.icns

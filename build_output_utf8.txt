@@ -1,0 +1,81 @@
+﻿[36mvite v6.4.1 [32mbuilding for production...[36m[39m
+[32mΓ£ô[39m 0 modules transformed.
+[36mvite v6.4.1 [32mbuilding for production...[36m[39m
+node.exe : (node:4700) [MO
+DULE_TYPELESS_PACKAGE_JSON
+] Warning: Module type of 
+file:///C:/Users/vivek/Doc
+uments/nexthire-desktop/po
+stcss.config.js?t=17754764
+82100 is not specified 
+and it doesn't parse as 
+CommonJS.
+At C:\nvm4w\nodejs\npx.ps1
+:16 char:5
++     & 
+"$basedir/node$exe"  "$bas
+edir/node_modules/npm/bin/
+npx-cli.js" ...
++     ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: ((  
+  node:4700) [MO...se a   
+ s CommonJS.:String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+Reparsing as ES module 
+because module syntax was 
+detected. This incurs a 
+performance overhead.
+To eliminate this 
+warning, add "type": 
+"module" to C:\Users\vivek
+\Documents\nexthire-deskto
+p\package.json.
+(Use `node 
+--trace-warnings ...` to 
+show where the warning 
+was created)
+transforming...
+[32mΓ£ô[39m 26 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/main/[22m[36mindex.js  [39m[1m[2m15.05 kB[22m[1m[22m[2m Γöé gzip: 4.56 kB[22m[2m Γöé map: 36.06 kB[22m
+[32mΓ£ô built in 367ms[39m
+[36mvite v6.4.1 [32mbuilding for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 1 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/preload/[22m[36mindex.js  [39m[1m[2m10.38 kB[22m[1m[22m[2m Γöé gzip: 3.01 kB[22m[2m Γöé map: 5.72 kB[22m
+[32mΓ£ô built in 13ms[39m
+[31mΓ£ù[39m Build 
+failed in 396ms
+[31merror during build:
+[31mCould not resolve 
+entry module 
+"index.html".[31m
+    at getRollupError (fil
+e:///C:/Users/vivek/Docume
+nts/nexthire-desktop/node_
+modules/rollup/dist/es/sha
+red/parseAst.js:406:41)
+    at error (file:///C:/U
+sers/vivek/Documents/nexth
+ire-desktop/node_modules/r
+ollup/dist/es/shared/parse
+Ast.js:402:42)
+    at ModuleLoader.loadEn
+tryModule (file:///C:/User
+s/vivek/Documents/nexthire
+-desktop/node_modules/roll
+up/dist/es/shared/node-ent
+ry.js:22127:20)
+    at async Promise.all 
+(index 0)[39m
+

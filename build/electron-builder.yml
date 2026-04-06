@@ -1,0 +1,54 @@
+appId: com.nexthire.desktop
+productName: NextHire
+copyright: "Copyright © 2025 NextHire"
+
+directories:
+  output: dist-electron
+
+files:
+  - dist/**/*
+  - node_modules/**/*
+  - "!node_modules/.cache"
+
+extraMetadata:
+  main: dist/main/index.js
+
+protocols:
+  - name: NextHire
+    schemes:
+      - nexthire
+
+win:
+  target: nsis
+  icon: assets/icon.png
+  signingHashAlgorithms:
+    - sha256
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: assets/icon.png
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  entitlementsInherit: build/entitlements.mac.plist
+
+dmg:
+  icon: assets/icon.png
+  iconSize: 80
+  window:
+    width: 540
+    height: 380
+
+linux:
+  target: AppImage
+  icon: assets/icon.png
