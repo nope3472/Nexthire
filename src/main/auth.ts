@@ -21,39 +21,6 @@ function getWorkOSClient(config: ReturnType<typeof getConfig>): WorkOS {
   });
 }
 
-function maskValue(value: string, visible = 6): string {
-  if (!value) return "<empty>";
-  if (value.length <= visible * 2) return `${value.slice(0, 2)}***`;
-  return `${value.slice(0, visible)}...${value.slice(-visible)}`;
-}
-
-function inferWorkosEnvironment(authkitDomain: string): string {
-  const host = authkitDomain.replace(/^https?:\/\//, "").toLowerCase();
-  if (host.includes("staging")) return "staging";
-  if (host.includes("test")) return "test";
-  if (host.includes("dev")) return "development";
-  if (host.includes("prod") || host.includes("production")) return "production";
-  return "unknown";
-}
-
-function logAuthConfigDiagnostics(config: ReturnType<typeof getConfig>): void {
-  let host = "<invalid>";
-  try {
-    host = new URL(config.authkitDomain).host;
-  } catch {
-    // Keep "<invalid>".
-  }
-
-  console.info("[auth] Starting OAuth with config:");
-  console.info(`[auth] - NODE_ENV=${process.env.NODE_ENV || "<unset>"}`);
-  console.info(`[auth] - inferred_env=${inferWorkosEnvironment(config.authkitDomain)}`);
-  console.info(`[auth] - authkit_domain=${config.authkitDomain || "<empty>"}`);
-  console.info(`[auth] - authkit_host=${host}`);
-  console.info(`[auth] - redirect_uri=${config.redirectUri || "<empty>"}`);
-  console.info(`[auth] - client_id=${maskValue(config.clientId)}`);
-  console.info(`[auth] - api_key=${maskValue(config.apiKey)}`);
-}
-
 function validateConfig(config: ReturnType<typeof getConfig>): void {
   if (!config.clientId || !config.authkitDomain || !config.redirectUri) {
     throw new Error(
@@ -101,25 +68,17 @@ async function preflightAuthorizationUrl(authorizationUrl: string): Promise<void
       redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
-    console.info(`[auth] Preflight status=${response.status} redirected=${response.redirected}`);
 
     const location = response.headers.get("location");
-    if (location) {
-      console.info(`[auth] Preflight location=${location}`);
-    }
     const authError = getAuthErrorFromLocation(location);
     if (authError) {
-      console.error(`[auth] Preflight detected auth error: ${authError}`);
       throw new Error(authError);
     }
   } catch (error) {
     if (error instanceof Error && error.message.includes("application_not_found")) {
       throw error;
     }
-    if (error instanceof Error) {
-      console.warn(`[auth] Preflight skipped due to non-fatal issue: ${error.message}`);
-    }
-    // Ignore transient/network preflight failures and continue with normal browser flow.
+    // Ignore transient/network preflight failures and continue.
   }
 }
 
@@ -158,31 +117,22 @@ export async function startOAuth(mainWindow: BrowserWindow): Promise<void> {
   }
 
   const config = getConfig();
-  logAuthConfigDiagnostics(config);
   validateConfig(config);
 
   // Step 1: Generate CSRF state value
   oauthState = generateOauthState();
 
   // Step 2: Build AuthKit hosted-login URL.
-  // screen_hint=sign-in forces the login screen even if the browser
-  // has an existing AuthKit session (prevents auto-login after sign-out).
   const params = new URLSearchParams({
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
     state: oauthState,
-    screen_hint: "sign-in",
+    prompt: "login",
   });
   const authkitUrl = new URL(config.authkitDomain);
   authkitUrl.pathname = "/";
   authkitUrl.search = params.toString();
   const authorizationUrl = authkitUrl.toString();
-  console.info(`[auth] Authorization URL base=${config.authkitDomain}/`);
-  console.info(
-    `[auth] Authorization URL params client_id=${maskValue(config.clientId)}, redirect_uri=${
-      config.redirectUri
-    }, state=${maskValue(oauthState || "", 4)}`
-  );
 
   // Try to surface deterministic config mismatches before opening the browser.
   await preflightAuthorizationUrl(authorizationUrl);
@@ -202,34 +152,23 @@ export async function startOAuth(mainWindow: BrowserWindow): Promise<void> {
     try {
       await handleOAuthCallback(url, mainWindow);
     } catch (err) {
-      // Always clear in-flight state on callback failure so retries are possible.
       resetInFlightOAuthState();
       const message = err instanceof Error ? err.message : "OAuth callback failed";
       mainWindow.webContents.send("auth:error", message);
     }
   };
 
-  // Do not auto-flush queued links; we handle them carefully below.
   onProtocolCallback(callbackHandler, false);
 
-  // If a queued deep link exists, only process it when it matches current state.
   const queuedUrl = consumeQueuedDeepLinkUrl();
   if (queuedUrl) {
     try {
       const queuedState = new URL(queuedUrl).searchParams.get("state");
       if (queuedState && queuedState === oauthState) {
-        console.info("[auth] Processing queued deep-link URL for current auth state.");
         await callbackHandler(queuedUrl);
-      } else {
-        console.warn(
-          `[auth] Ignoring stale queued deep-link URL. expected_state=${maskValue(
-            oauthState || "",
-            4
-          )} received_state=${maskValue(queuedState || "", 4)}`
-        );
       }
     } catch {
-      console.warn("[auth] Ignoring malformed queued deep-link URL.");
+      // Ignore malformed queued callbacks.
     }
   }
 }
@@ -238,8 +177,6 @@ export async function startOAuth(mainWindow: BrowserWindow): Promise<void> {
  * Handle the OAuth callback from the custom protocol.
  */
 async function handleOAuthCallback(callbackUrl: string, mainWindow: BrowserWindow): Promise<void> {
-  console.info(`[auth] Received callback URL: ${callbackUrl}`);
-
   if (oauthTimeout) clearTimeout(oauthTimeout);
   oauthTimeout = null;
 
@@ -247,24 +184,13 @@ async function handleOAuthCallback(callbackUrl: string, mainWindow: BrowserWindo
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
-  console.info(
-    `[auth] Callback params state=${maskValue(state || "", 4)} expected_state=${maskValue(
-      oauthState || "",
-      4
-    )} has_code=${code ? "yes" : "no"} error=${error || "<none>"}`
-  );
 
   if (error) {
     throw new Error(`OAuth error: ${error}`);
   }
 
-  // Some WorkOS AuthKit flows return only `code` on callback (no `state`).
-  // If state is present, validate it strictly. If omitted, continue with PKCE.
   if (state && state !== oauthState) {
     throw new Error("Invalid OAuth state. This is usually a stale callback from a previous sign-in attempt. Please try signing in again.");
-  }
-  if (!state) {
-    console.warn("[auth] Callback omitted state. Continuing with PKCE-only validation.");
   }
 
   if (!code) {
